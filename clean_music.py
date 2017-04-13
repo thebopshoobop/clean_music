@@ -4,6 +4,7 @@ import os
 import os.path as op
 import re
 from collections import Counter
+from shutil import rmtree
 
 import click
 
@@ -51,7 +52,7 @@ def check_dir(directory, size):
             if len(re.findall(r'disc|disk', root, re.I)) > 1:
                 results['extra']['dirs'].append(root)
             # Single disc albums with disc tags
-            if re.search(r'\(disc|disk\ \d{1,2}\)', root, re.I):
+            if re.search(r'\(disc\ \d\)$', root, re.I):
                 all_discs.append(root)
                 disc_tags[root[:-9]] += 1
             # No music
@@ -63,6 +64,12 @@ def check_dir(directory, size):
                                  if disc_tags[n[:-9]] == 1]
 
     return results
+
+
+def display(label, dirs):
+    """Given a label and a list of directories, display them."""
+    click.secho(label, bg='blue', fg='white', bold=True)
+    click.echo('\n'.join(sorted(dirs)))
 
 
 @click.command()
@@ -84,6 +91,21 @@ def clean(directory, remove, size):
 
     results = check_dir(directory, size)
 
-    for _, result in results.items():
-        click.secho(result['label'], bg='blue', fg='white', bold=True)
-        click.echo('\n'.join(sorted(result['dirs'])))
+    if not remove:
+        for _, result in results.items():
+            display(result['label'], result['dirs'])
+    else:
+        display(results['empty']['label'], results['empty']['dirs'])
+
+        while True:
+            click.secho('Delete directories? [y/n]', bg='red', fg='white',
+                        bold=True)
+            response = click.getchar()
+            if response not in ['y', 'n']:
+                click.echo('Warning: Invalid Input')
+            elif response == 'y':
+                for path in results['empty']['dirs']:
+                    rmtree(path)
+                break
+            else:
+                break
